@@ -71,6 +71,7 @@ func (s *Server) SetFallback(upstream string, domains []string) {
 	for _, d := range domains {
 		s.fallbackDomains[d] = struct{}{}
 	}
+	log.Infof("Fallback upstrem is %s for %v", upstream, domains)
 }
 
 // Handler for the incoming DNS queries.
@@ -110,10 +111,11 @@ func (s *Server) Handler(w dns.ResponseWriter, r *dns.Msg) {
 	}
 
 	// Forward to the fallback server if the domain is on our list.
-	if _, ok := s.fallbackDomains[r.Question[0].Name]; ok {
+	qd := domainName(r.Question[0].Name)
+	if _, ok := s.fallbackDomains[qd]; ok {
 		u, err := dns.Exchange(r, s.fallbackUpstream)
 		if err == nil {
-			tr.LazyPrintf("used fallback upstream (%s)", s.fallbackUpstream)
+			tr.LazyPrintf("used fallback upstream (%s) for %s", s.fallbackUpstream, qd)
 			util.TraceAnswer(tr, u)
 			w.WriteMsg(u)
 		} else {
@@ -144,6 +146,13 @@ func (s *Server) Handler(w dns.ResponseWriter, r *dns.Msg) {
 
 	fromUp.Id = oldid
 	w.WriteMsg(fromUp)
+}
+
+func domainName(name string) string {
+	if index := strings.Index(name, "."); index != -1 {
+		return name[index+1:]
+	}
+	return ""
 }
 
 // ListenAndServe launches the DNS proxy.
