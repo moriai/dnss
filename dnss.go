@@ -174,7 +174,12 @@ func proxyServerDomain() string {
 		return ""
 	}
 
-	return proxyURL.Hostname()
+	name := proxyURL.Hostname()
+	if index := strings.Index(name, "."); index != -1 {
+		return name[index+1:]
+	}
+
+	return ""
 }
 
 func launchMonitoringServer(addr string) {
